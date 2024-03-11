@@ -11,14 +11,18 @@ namespace PhonepeProblem.Models
         public string AgentEmail { get; }
         public string AgentName { get; }
 
-        public IList<string> IssueType { get; }
+        public IList<IssueType> IssueType { get; }
 
         public AgentStatus AgentStatus { get; set; }
-        public CustomerAgent(string agentEmail, string agentName, IList<string> issueType)
+
+        public ICustomerIssue CurrentIssue { get; set; }
+
+        public CustomerAgent(string agentEmail, string agentName, IList<IssueType> issueType)
         {
             this.AgentEmail = agentEmail;
             this.AgentName = agentName;
             this.IssueType = issueType;
+            this.AgentStatus = AgentStatus.FREE;
         }
     }
 }

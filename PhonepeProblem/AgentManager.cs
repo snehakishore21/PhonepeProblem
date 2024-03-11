@@ -26,37 +26,36 @@ namespace PhonepeProblem
             return agentManager;
         }
 
-        public ICustomerAgent AddAgent(string agentEmail, string agentName, List<string> issueType)
+        public ICustomerAgent AddAgent(string agentEmail, string agentName, List<IssueType> issueType)
         {
             ICustomerAgent customerAgent = new CustomerAgent(agentEmail, agentName, issueType);
-            Console.WriteLine($"Agent {customerAgent.AgentName} created.");
             issueAndAgentMediator.NotifyWhenAgentAdded(customerAgent);
+            Console.WriteLine($"Agent {customerAgent.AgentName} created.");
             return customerAgent;
         }
 
-        public Dictionary<string, IList<string>> ViewAgentWorkHistory()
+        public string ViewAgentWorkHistory()
+        {
+            Dictionary<string, IList<string>> result = GetAgentWorkHistory();
+            string history = string.Empty;
+            foreach (var agentRes in result)
+            {
+                history+= $"{agentRes.Key} -> ( {string.Join(',', agentRes.Value)} ),";
+            }
+            history = history.Trim(',');
+            return history;
+        }
+
+        public Dictionary<string, IList<string>> GetAgentWorkHistory()
         {
             Dictionary<string, IList<string>> result = new();
             foreach(var agent in agents)
             {
-                IList<string> issues = issueAndAgentMediator.GetIssuesResolvedBy(agent.AgentEmail);
+                IList<string> issues = issueAndAgentMediator.GetIssuesWorkedOnBy(agent.AgentEmail);
                 result.Add(agent.AgentName, issues);
             }
             return result;
         }
-
-        public IList<ICustomerIssue> SearchForIssues(string paramKey, string value)
-        {
-            IList<ICustomerIssue> issues = issueAndAgentMediator.SearchForIssues(paramKey, value);
-            return issues;
-        }
-
-        public IList<ICustomerIssue> GetListOfIssues(ICustomerAgent agent)
-        {
-            IList<ICustomerIssue> customerIssues = issueAndAgentMediator.GetListOfIssues(agent.AgentEmail);
-            return customerIssues;
-        }
-
 
         public void UpdateIssue(string issueId, IssueStatus status, string resolution, ICustomerAgent customerAgent)
         {

@@ -11,70 +11,86 @@ namespace PhonepeProblem
 {
     public class IssueAndAgentMediator
     {
-        Dictionary<IssueType, IList<ICustomerAgent>> CustomerAgentIssueMap = new Dictionary<IssueType, IList<ICustomerAgent>>();
+        private Dictionary<string, ICustomerIssue> issueMap = new Dictionary<string, ICustomerIssue>();
+        Dictionary<IssueType, IList<string>> IssueTypeWithIssueMap = new();
 
-        Dictionary<IssueType, IList<ICustomerIssue>> IssueTypeWithIssueMap = new();
+        private Dictionary<string, ICustomerAgent> agentMap = new Dictionary<string, ICustomerAgent>();
+        Dictionary<IssueType, IList<string>> IssueTypeWithAgentMap = new Dictionary<IssueType, IList<string>>();
 
-        Dictionary<string, IList<ICustomerIssue>> IssuesInPipeLine = new();
+        Dictionary<string, IList<string>> AgentIssuesInPipeLineMap = new();
 
-        Dictionary<string, IList<string>> ResolvedIssuesAgentMap = new();
+        Dictionary<string, IList<string>> AgentResolvedIssuesMap = new();
 
-        Dictionary<string, IList<ICustomerIssue>> IssuesAgentMap = new();
+        Dictionary<string, ICustomerIssue> IssuesAgentMap = new();
 
-        internal ICustomerAgent GetAgentForIssue(ICustomerIssue issue)
+        internal ICustomerAgent AssignIssue(string issueId)
         {
-            IssueType issueType = issue.IssueType;
-            if (CustomerAgentIssueMap.ContainsKey(issueType) && CustomerAgentIssueMap[issueType].Count>0)
+            if (!issueMap.ContainsKey(issueId))
             {
-                foreach (var agent in CustomerAgentIssueMap[issueType])
-                {
-                    if (agent.AgentStatus == AgentStatus.FREE)
-                    {
-                        return agent;
-                    }
-                }
-                ICustomerAgent agentCurr = CustomerAgentIssueMap[issueType].First();
-                IssuesInPipeLine.TryAdd(agentCurr.AgentEmail, new List<ICustomerIssue>());
-                IssuesInPipeLine[agentCurr.AgentEmail].Add(issue);
-                return agentCurr;
+                throw new Exception("Issue not found");
+            }
+            ICustomerIssue issue = issueMap[issueId];
+            IAgentSelectionStrategy agentSelectionStrategy = AssignAgentStrategyFactory.GetStrategyToSelectAgent(issue);
+            (ICustomerAgent agentCurr, bool isWaitlisted) = agentSelectionStrategy.GetAgentForIssue(issue, agentMap);
+            
+            if (isWaitlisted)
+            {
+                AgentIssuesInPipeLineMap.TryAdd(agentCurr.AgentEmail, new List<string>());
+                NotifyWhenIssueAddedInPipeline(agentCurr, issueId);
             }
             else
             {
-                throw new Exception("No agent found for the issue type");
+                AssignIssueToAgent(agentCurr, issue);
+                NotifyWhenIssueAssigned(agentCurr, issueId);
             }
+
+            return agentCurr;
         }
 
-        internal IList<string> GetIssuesResolvedBy(string agentEmail)
+        internal IList<string> GetIssuesWorkedOnBy(string agentEmail)
         {
-            if(ResolvedIssuesAgentMap.ContainsKey(agentEmail))
+            IList<string> issuesWorkedOn = new List<string>();
+            if(AgentResolvedIssuesMap.ContainsKey(agentEmail))
             {
-                return ResolvedIssuesAgentMap[agentEmail];
+                issuesWorkedOn = AgentResolvedIssuesMap[agentEmail];
             }
-            else
+            if (agentMap[agentEmail].CurrentIssue != null)
             {
-                throw new Exception("No issues resolved by the agent");
+                issuesWorkedOn.Add(agentMap[agentEmail].CurrentIssue.IssueId);
             }
+            return issuesWorkedOn;
         }
 
         internal void NotifyWhenAgentAdded(ICustomerAgent customerAgent)
         {
+            if(agentMap.ContainsKey(customerAgent.AgentEmail))
+            {
+                throw new Exception("Agent already exists");
+            }
+            agentMap.Add(customerAgent.AgentEmail, customerAgent);
+
             foreach (var issueType in customerAgent.IssueType)
             {
-                if (CustomerAgentIssueMap.ContainsKey(issueType))
+                if (IssueTypeWithAgentMap.ContainsKey(issueType))
                 {
-                    CustomerAgentIssueMap[issueType].Add(customerAgent);
+                    IssueTypeWithAgentMap[issueType].Add(customerAgent.AgentEmail);
                 }
                 else
                 {
-                    CustomerAgentIssueMap.Add(issueType, new List<ICustomerAgent>() { customerAgent });
+                    IssueTypeWithAgentMap.Add(issueType, new List<string>() { customerAgent.AgentEmail });
                 }
             }   
         }
 
         internal void NotifyWhenIssueAdded(ICustomerIssue customerIssue)
         {
-            IssueTypeWithIssueMap.TryAdd(customerIssue.IssueType, new List<ICustomerIssue>());
-            IssueTypeWithIssueMap[customerIssue.IssueType].Add(customerIssue);
+            if(issueMap.ContainsKey(customerIssue.IssueId))
+            {
+                throw new Exception("Issue already exists");
+            }
+            issueMap.Add(customerIssue.IssueId, customerIssue);
+            IssueTypeWithIssueMap.TryAdd(customerIssue.IssueType, new List<string>());
+            IssueTypeWithIssueMap[customerIssue.IssueType].Add(customerIssue.IssueId);
         }
 
         internal void NotifyWhenIssueAssigned(ICustomerAgent customerAgentAssigned, string issueId)
@@ -82,103 +98,100 @@ namespace PhonepeProblem
             Console.WriteLine($"Issue {issueId} assigned to {customerAgentAssigned.AgentName}");
         }
 
-        public IList<ICustomerIssue> SearchForIssues(string paramKey, string value)
+        internal void NotifyWhenIssueAddedInPipeline(ICustomerAgent customerAgentAssigned, string issueId)
         {
-
-        }
-
-        public IList<ICustomerIssue> GetListOfIssues(string agentId)
-        {
-            if(IssuesAgentMap.ContainsKey(agentId))
-            {
-                return IssuesAgentMap[agentId];
-            }
-            else
-            {
-                throw new Exception("No issues found for the agent");
-            }
+            Console.WriteLine($"Issue {issueId} added to waitlist of Agent {customerAgentAssigned.AgentName}");
         }
 
         public void UpdateIssue(string issueId, IssueStatus status, string resolution, ICustomerAgent customerAgent)
         {
-            if(IssuesAgentMap.ContainsKey(customerAgent.AgentEmail))
+            if (!IssuesAgentMap.ContainsKey(customerAgent.AgentEmail))
+            { throw new Exception($"Issue {issueId} not assigned to the agent {customerAgent.AgentName}"); }
+
+            if (status == IssueStatus.RESOLVED)
             {
-                var issue = IssuesAgentMap[customerAgent.AgentEmail].Where(x => x.IssueId == issueId).FirstOrDefault();
-                if(issue!=null)
+                ResolveIssue(issueId, resolution, customerAgent);
+                Console.WriteLine($"{issueId} status updated to {status.ToString()}");
+                return;
+            }
+
+            ICustomerIssue issue = IssuesAgentMap[customerAgent.AgentEmail];
+            
+            HandleExceptionForEligibilityForStatusUpdate(issue, customerAgent, issueId);
+
+            issue.SetStatus(status);
+            issue.SetResolution(resolution);
+
+            Console.WriteLine($"{issueId} status updated to {status.ToString()}");
+        }
+
+        private void HandleExceptionForEligibilityForStatusUpdate(ICustomerIssue issue, ICustomerAgent customerAgent, string issueId)
+        {
+            if (issue.IssueId != issueId)
+            {
+                if (AgentIssuesInPipeLineMap.ContainsKey(customerAgent.AgentEmail) && AgentIssuesInPipeLineMap[customerAgent.AgentEmail].Contains(issueId))
                 {
-                    issue.SetStatus(status);
-                    issue.Resolution = resolution;
-                    if(status == IssueStatus.RESOLVED)
-                    {
-                        if(ResolvedIssuesAgentMap.ContainsKey(customerAgent.AgentEmail))
-                        {
-                            ResolvedIssuesAgentMap[customerAgent.AgentEmail].Add(issueId);
-                        }
-                        else
-                        {
-                            ResolvedIssuesAgentMap.Add(customerAgent.AgentEmail, new List<string>() { issueId });
-                        }
-                    }
+                    throw new Exception($"Agent {customerAgent.AgentName} has not started working on issue {issueId}.");
                 }
                 else
                 {
-                    throw new Exception("Issue not found for the agent");
+                    throw new Exception($"Issue {issueId} not assigned to the agent {customerAgent.AgentName}");
                 }
             }
-            else
-            {
-                throw new Exception("No issues found for the agent");
-            }
+        }
+
+        private void FreeUpCustomerAgent(ICustomerAgent customerAgent)
+        {
+            IssuesAgentMap.Remove(customerAgent.AgentEmail);
+            customerAgent.AgentStatus = AgentStatus.FREE;
+            customerAgent.CurrentIssue = null;
         }
 
         public void ResolveIssue(string issueId, string resolution, ICustomerAgent customerAgent)
         {
-            if(IssuesAgentMap.ContainsKey(customerAgent.AgentEmail))
-            {
-                var issue = IssuesAgentMap[customerAgent.AgentEmail].Where(x => x.IssueId == issueId).FirstOrDefault();
-                if(issue!=null)
-                {
-                    issue.SetStatus(IssueStatus.RESOLVED);
-                    issue.Resolution = resolution;
-                    if(ResolvedIssuesAgentMap.ContainsKey(customerAgent.AgentEmail))
-                    {
-                        ResolvedIssuesAgentMap[customerAgent.AgentEmail].Add(issueId);
-                    }
-                    else
-                    {
-                        ResolvedIssuesAgentMap.Add(customerAgent.AgentEmail, new List<string>() { issueId });
-                    }
-                }
-                else
-                {
-                    throw new Exception("Issue not found for the agent");
-                }
-            }
-            else
-            {
-                throw new Exception("No issues found for the agent");
-            }
+            if (!IssuesAgentMap.ContainsKey(customerAgent.AgentEmail))
+            { throw new Exception($"Issue {issueId} not assigned to the agent {customerAgent.AgentName}"); }
+
+            ICustomerIssue issue = IssuesAgentMap[customerAgent.AgentEmail];
+            HandleExceptionForEligibilityForStatusUpdate(issue, customerAgent, issueId);
+
+            issue.SetStatus(IssueStatus.RESOLVED);
+            issue.SetResolution(resolution);
+            FreeUpCustomerAgent(customerAgent);
+            AgentResolvedIssuesMap.TryAdd(customerAgent.AgentEmail, new List<string>());
+            AgentResolvedIssuesMap[customerAgent.AgentEmail].Add(issueId);
+            Console.WriteLine($"{issueId} issue marked resolved");
+            
+            StartWorkingOnNextTask(customerAgent);
         }
 
         internal void StartWorkingOnNextTask(ICustomerAgent customerAgent)
         {
-            if(IssuesInPipeLine.TryGetValue(customerAgent.AgentEmail, out var issues))
+            if (!IssuesAgentMap.ContainsKey(customerAgent.AgentEmail) || AgentIssuesInPipeLineMap[customerAgent.AgentEmail].Count == 0)
             {
-                if(issues.Count>0)
-                {
-                    var issue = issues.First();
-                    issues.Remove(issue);
-                    if(IssuesAgentMap.ContainsKey(customerAgent.AgentEmail))
-                    {
-                        IssuesAgentMap[customerAgent.AgentEmail].Add(issue);
-                    }
-                    else
-                    {
-                        IssuesAgentMap.Add(customerAgent.AgentEmail, new List<ICustomerIssue>() { issue });
-                    }
-                    NotifyWhenIssueAssigned(customerAgent, issue.IssueId);
-                }
+                return;
             }
+
+            string issueId = AgentIssuesInPipeLineMap[customerAgent.AgentEmail][0];
+            ICustomerIssue issue = issueMap[issueId];
+            AgentIssuesInPipeLineMap[customerAgent.AgentEmail].RemoveAt(0);
+            AssignIssueToAgent(customerAgent, issue);
+        }
+
+        private void AssignIssueToAgent(ICustomerAgent customerAgent, ICustomerIssue issue)
+        {
+            IssuesAgentMap.TryAdd(customerAgent.AgentEmail, issue);
+            issue.SetStatus(IssueStatus.IN_PROGRESS);
+            customerAgent.CurrentIssue = issue;
+        }
+
+        internal IList<ICustomerIssue> GetIssues(Dictionary<string, string> parameters)
+        {
+            return issueMap.Values.Where(item =>
+                parameters.All(param =>
+                    item.GetType().GetProperty(param.Key)?.GetValue(item, null)?.Equals(param.Value) ?? false
+                )
+            ).ToList();
         }
     }
 }

@@ -13,7 +13,6 @@ namespace PhonepeProblem
 
         private IssueAndAgentMediator issueAndAgentMediator;
 
-        private Dictionary<string, ICustomerIssue> issueMap = new Dictionary<string, ICustomerIssue>();
         private IssueManager(IssueAndAgentMediator issueAndAgentMediator)
         {
             this.issueAndAgentMediator = issueAndAgentMediator;
@@ -32,35 +31,27 @@ namespace PhonepeProblem
         {
             CustomerIssueFactory customerIssueFactory = new CustomerIssueFactory();
             ICustomerIssue customerIssue = customerIssueFactory.GetCustomerIssue(transactionId, issueType, subject, description, email);
-            Console.WriteLine($"Issue {customerIssue.IssueId} created against transaction \"{transactionId}\".");
             issueAndAgentMediator.NotifyWhenIssueAdded(customerIssue);
-            issueMap.TryAdd(customerIssue.IssueId, customerIssue);
+            Console.WriteLine($"Issue {customerIssue.IssueId} created against transaction \"{transactionId}\".");
             return customerIssue;
         }
 
-        public void AssignIssue( string issueId)
+        public ICustomerAgent AssignIssue(string issueId)
         {
-            if(!issueMap.ContainsKey(issueId))
-            {
-                throw new Exception("Issue not found");
-            }
-            ICustomerAgent customerAgentAssigned = issueAndAgentMediator.GetAgentForIssue(issueMap[issueId]);
-
-            issueMap[issueId].AssignedAgent = customerAgentAssigned;
-            issueMap[issueId].SetStatus(customerAgentAssigned.AgentStatus == AgentStatus.FREE ? IssueStatus.IN_PROGRESS: IssueStatus.OPEN);
-            customerAgentAssigned.AgentStatus = AgentStatus.WORKING;
-            customerAgentAssigned.CurrentIssue = issueMap[issueId];
-            Console.WriteLine($"Issue {issueId} assigned to agent {customerAgentAssigned.AgentName}");
-            issueAndAgentMediator.NotifyWhenIssueAssigned(customerAgentAssigned, issueId);
+            ICustomerAgent agent = issueAndAgentMediator.AssignIssue(issueId);
+            return agent;
         }
 
-        public IEnumerable<ICustomerIssue> GetIssues(Dictionary<string, string> parameters)
+        public string  GetIssues(Dictionary<string, string> parameters)
         {
-            return issueMap.Values.Where(item =>
-                parameters.All(param =>
-                    item.GetType().GetProperty(param.Key)?.GetValue(item, null)?.Equals(param.Value) ?? false
-                )
-            );
+            var issues = issueAndAgentMediator.GetIssues(parameters);
+            string issuesStrings = string.Empty;
+            foreach (ICustomerIssue customerIssue in issues)
+            {
+                issuesStrings+=customerIssue.ToString()+"\n";
+            }
+            return issuesStrings;
+
         }
     }
 }

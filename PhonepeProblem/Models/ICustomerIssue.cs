@@ -19,7 +19,11 @@ namespace PhonepeProblem.Models
 
         ICustomerAgent AssignedAgent { get; set; }
 
-        string Resolution { get; set; }
+        string Resolution { get; }
+
+        void SetResolution(string resolution);
         void SetStatus(IssueStatus status);
+
+        string ToString();
     }
 }

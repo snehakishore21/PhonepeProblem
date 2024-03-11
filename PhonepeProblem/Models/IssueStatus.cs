@@ -23,7 +23,7 @@ namespace PhonepeProblem.Models
 
     public enum AgentStatus
     {
-        WORKING,
-        FREE
+        FREE,
+        WORKING
     }  
 }

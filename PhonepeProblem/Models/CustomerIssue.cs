@@ -17,7 +17,7 @@ namespace PhonepeProblem.Models
 
         public IssueType IssueType { get; }
         public ICustomerAgent AssignedAgent { get; set;  }
-        public string Resolution { get; set;  }
+        public string Resolution { get; private set;  }
 
         public PaymentIssue(string transactionId, string subject, string description, string email)
         {
@@ -39,6 +39,11 @@ namespace PhonepeProblem.Models
         {
             return $"{IssueId} {{ {TransactionId}, {Subject}, {Description}, {Email}, {Status} }}";
         }
+
+        public void SetResolution(string resolution)
+        {
+           this.Resolution = resolution;
+        }
     }
 
     public class MutualFundIssue : ICustomerIssue
@@ -52,7 +57,7 @@ namespace PhonepeProblem.Models
 
         public IssueType IssueType { get; }
         public ICustomerAgent AssignedAgent { get; set;  }
-        public string Resolution { get; set;  }
+        public string Resolution { get; private set;  }
 
         public MutualFundIssue(string transactionId, string subject, string description, string email)
         {
@@ -74,6 +79,10 @@ namespace PhonepeProblem.Models
         {
             return $"{IssueId} {{ {TransactionId}, {Subject}, {Description}, {Email}, {Status} }}";
         }
+        public void SetResolution(string resolution)
+        {
+            this.Resolution = resolution;
+        }
     }
 
     public class GoldIssue : ICustomerIssue
@@ -87,7 +96,7 @@ namespace PhonepeProblem.Models
 
         public IssueType IssueType { get; }
         public ICustomerAgent AssignedAgent { get; set; }
-        public string Resolution { get; set;  }
+        public string Resolution { get; private set;  }
 
         public GoldIssue(string transactionId, string subject, string description, string email)
         {
@@ -109,6 +118,11 @@ namespace PhonepeProblem.Models
         {
             return $"{IssueId} {{ {TransactionId}, {Subject}, {Description}, {Email}, {Status} }}";
         }
+
+        public void SetResolution(string resolution)
+        {
+            this.Resolution = resolution;
+        }
     }
 
     public class InsuranceIssue : ICustomerIssue
@@ -122,7 +136,7 @@ namespace PhonepeProblem.Models
 
         public IssueType IssueType { get; }
         public ICustomerAgent AssignedAgent { get; set;  }
-        public string Resolution { get; set;  }
+        public string Resolution { get; private set;  }
 
         public InsuranceIssue(string transactionId, string subject, string description, string email)
         {
@@ -143,6 +157,11 @@ namespace PhonepeProblem.Models
         public override string ToString()
         {
             return $"{IssueId} {{ {TransactionId}, {Subject}, {Description}, {Email}, {Status} }}";
+        }
+
+        public void SetResolution(string resolution)
+        {
+            this.Resolution = resolution;
         }
     }
 }
